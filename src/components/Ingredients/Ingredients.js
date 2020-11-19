@@ -1,22 +1,48 @@
-import React, { useState, useEffect, useCallback} from 'react';
+import React, { useEffect, useCallback, useReducer} from 'react';
 
 import IngredientForm from './IngredientForm';
 import IngredientList from './IngredientList';
 import Search from './Search';
 import ErrorModal from '../UI/ErrorModal';
 
-const Ingredients = ()=> {
+const ingredientReducer = (currentState, action)=>{
+  switch(action.type){
+    case 'SET': return action.ingredients;
+    case 'ADD': return [...currentState, action.ingredients];
+    case 'DELETE': return currentState.filter(ing =>ing.id !== action.id)
+    default:
+      throw new Error('')
+  }
+}
+const httpReducer = (curHttpState, action)=>{
+  switch(action.type){
+    case 'SEND':
+      return { loading: true,error: null};
+    case 'RESPONSE':
+      return { ...curHttpState, loading: false};
+    case 'ERROR':
+      return { loading: false,error: action.errorMsg};
+    case 'CLEAR': 
+      return {...curHttpState, error: null}
 
-  const [enteredIngredients, setEnteredIngredients] = useState([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [isError, setIsError] = useState(false);
+    default: throw new Error('Not in this section', action.type);
+  }
+}
+
+const Ingredients = ()=> {
+  const [enteredIngredients, dispatch] = useReducer(ingredientReducer,[])
+  // const [enteredIngredients, setEnteredIngredients] = useState([]);
+  const [httpState, dispatchHttp] = useReducer(httpReducer,{loading: false, error: null});
+  // const [isLoading, setIsLoading] = useState(false);
+  // const [isError, setIsError] = useState(false);
 
   useEffect(()=>{
     console.log('useEffect from ingredients');
   },[enteredIngredients])
 
 const onAddIngredientHandler = (ingredients) =>{
-    setIsLoading(true);
+    // setIsLoading(true);
+    dispatchHttp({type:'SEND'})
     fetch('https://react-hook-6e893.firebaseio.com/ingredinets.json',{
       method:'POST',
       body: JSON.stringify(ingredients),
@@ -26,55 +52,69 @@ const onAddIngredientHandler = (ingredients) =>{
     })
     .then(resp => resp.json())
     .then((respData)=>{
-      setIsLoading(false);
+      // setIsLoading(false);
+      dispatchHttp({type:'RESPONSE'});
 
-      setEnteredIngredients((prevState)=>{
-        return [...prevState, {id:respData.name, ...ingredients}]
-    }
-      );
+      // setEnteredIngredients((prevState)=>{
+      //   return [...prevState, {id:respData.name, ...ingredients}]
+      // });.
+
+      dispatch({type:'ADD', ingredients:ingredients})
+
+
     })
     .catch((error)=>{
-      setIsLoading(true);
+      // setIsLoading(true);
+      dispatchHttp({type:'ERROR', errorMsg: error.message});
+
     })
 }
   const onRemoveItemHandler = (id) =>{
     console.log(id);
-    setIsLoading(true);
+    // setIsLoading(true);
+    dispatchHttp({type:'SEND'})
 
-    fetch(`https://react-hook-6e893.firebaseio.com/ingredinets/${id}.jon`,{
+    fetch(`https://react-hook-6e893.firebaseio.com/ingredinets/${id}.json`,{
       method: 'DELETE',
       headers: {
         'Content-Type': 'application/json'
       }
     }).then((resp)=>{
-      setIsLoading(false);
+      // setIsLoading(false);
+      dispatchHttp({type:'RESPONSE'})
+      dispatch({type: 'DELETE', id: id})
 
-      setEnteredIngredients((prevState)=>{
-       let as = prevState.filter((state)=>{
-         return  state.id !== id
-        })
-        console.log(as);
-        return [...as];
-      })
+
+      // setEnteredIngredients((prevState)=>{
+      //  let as = prevState.filter((state)=>{
+      //    return  state.id !== id
+      //   })
+      //   console.log(as);
+      //   return [...as];
+      // })
+
     }).catch(error=>{
-      setIsError(error.message);
+      // setIsError(error.message);
+      dispatchHttp({type:'ERROR',errorMsg: error.message})
+
     })
 
   }
 
   const onSearchHandler = useCallback((ingredients) =>{
-    setEnteredIngredients(ingredients)
+    dispatch({type: 'SET', ingredients: ingredients});
   },[])
 
   const onErrorModalClose = () =>{
-    setIsError(null);
-    setIsLoading(false);
+    // setIsError(null);
+    // setIsLoading(false);
+    dispatchHttp({type:'CLEAR'})
   }
 
   return (
     <div className="App">
-      {isError && <ErrorModal onClose={onErrorModalClose}>{isError}</ErrorModal>}
-      <IngredientForm onAddIngredient = {onAddIngredientHandler} loading={isLoading} />
+      {httpState.error && <ErrorModal onClose={onErrorModalClose}>{httpState.error}</ErrorModal>}
+      <IngredientForm onAddIngredient = {onAddIngredientHandler} loading={httpState.loading} />
 
       <section>
         <Search onSearch={onSearchHandler}/>
