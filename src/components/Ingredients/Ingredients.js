@@ -40,7 +40,7 @@ const Ingredients = ()=> {
     console.log('useEffect from ingredients');
   },[enteredIngredients])
 
-const onAddIngredientHandler = (ingredients) =>{
+const onAddIngredientHandler = useCallback((ingredients) =>{
     // setIsLoading(true);
     dispatchHttp({type:'SEND'})
     fetch('https://react-hook-6e893.firebaseio.com/ingredinets.json',{
@@ -68,7 +68,7 @@ const onAddIngredientHandler = (ingredients) =>{
       dispatchHttp({type:'ERROR', errorMsg: error.message});
 
     })
-}
+}, [])
   const onRemoveItemHandler = (id) =>{
     console.log(id);
     // setIsLoading(true);
